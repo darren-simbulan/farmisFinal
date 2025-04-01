@@ -1,4 +1,4 @@
-package com.example.farmis
+package com.darren.farmis
 
 import io.flutter.embedding.android.FlutterActivity
 
