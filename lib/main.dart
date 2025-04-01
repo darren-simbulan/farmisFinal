@@ -5,6 +5,9 @@ import 'screens/inventory_screen.dart';
 import 'screens/cart_screen.dart';
 
 void main() {
+  // Reset the app start flag when the app launches
+  CartScreen.resetAppStartFlag();
+
   runApp(
     MultiProvider(
       providers: [
@@ -16,23 +19,27 @@ void main() {
 }
 
 class FarmisApp extends StatelessWidget {
+  const FarmisApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Farmis - Ordering System',
       theme: ThemeData(primarySwatch: Colors.green),
-      home: HomeScreen(), // Gamit tayo ng bottom navigation
+      home: HomeScreen(),
     );
   }
 }
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  HomeScreenState createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [

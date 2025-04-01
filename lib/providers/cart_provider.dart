@@ -31,8 +31,8 @@ class CartProvider with ChangeNotifier {
   // Remove product from cart
   void removeFromCart(Product product) {
     if (_cartItems.containsKey(product.id)) {
-      final int quantity = _cartItems[product.id]!['quantity'];
-      _cartItems.remove(product.id);
+      final int quantity = cartItems[product.id]!['quantity'];
+      cartItems.remove(product.id);
 
       // Optionally, restore stock in the UI (no DB update here)
       notifyListeners();
@@ -44,7 +44,7 @@ class CartProvider with ChangeNotifier {
 
 // Restore stock if user cancels cart or time expires
   void restoreCartStock() {
-    _cartItems.forEach((key, value) {
+    cartItems.forEach((key, value) {
       final Product product = value['product'];
       final int quantity = value['quantity'];
 

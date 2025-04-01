@@ -18,34 +18,61 @@ class ApiService {
 
   // Add new product
   static Future<void> addProduct(Product product) async {
-    await http.post(Uri.parse("$baseUrl/add_product.php"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(product.toJson()));
+    final response = await http.post(
+      Uri.parse("$baseUrl/add_product.php"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(product.toJson()),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception("Failed to add product: ${response.body}");
+    }
   }
 
-  // Update product
+  // Update product (full update - name, price, stock)
   static Future<void> updateProduct(Product product) async {
-    await http.put(Uri.parse("$baseUrl/update_product.php"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(product.toJson()));
+    final response = await http.put(
+      Uri.parse("$baseUrl/update_product.php"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        'id': product.id,
+        'name': product.name,
+        'price': product.price,
+        'stock': product.stock,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception("Failed to update product: ${response.body}");
+    }
   }
 
   // Delete product
   static Future<void> deleteProduct(int id) async {
-    await http.delete(Uri.parse("$baseUrl/delete_product.php"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({'id': id}));
+    final response = await http.delete(
+      Uri.parse("$baseUrl/delete_product.php"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({'id': id}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception("Failed to delete product: ${response.body}");
+    }
   }
 
-  // Update product stock
+  // Update only product stock (for quick cart updates)
   static Future<void> updateProductStock(int productId, int newStock) async {
-    await http.put(
-      Uri.parse("$baseUrl/update_product_stock.php"),
+    final response = await http.put(
+      Uri.parse("$baseUrl/update_product.php"), // Using the same endpoint
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         'id': productId,
         'stock': newStock,
       }),
     );
+
+    if (response.statusCode != 200) {
+      throw Exception("Failed to update stock: ${response.body}");
+    }
   }
 }

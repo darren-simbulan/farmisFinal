@@ -1,17 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:async'; // For the timer
+import 'dart:async';
 import '../providers/cart_provider.dart';
 import '../models/product.dart';
 
 class CartScreen extends StatefulWidget {
+  const CartScreen({super.key});
+
   @override
-  _CartScreenState createState() => _CartScreenState();
+  CartScreenState createState() => CartScreenState();
+
+  // Static method to reset the app start flag
+  static void resetAppStartFlag() {
+    CartScreenState._appJustStarted = true;
+  }
 }
 
-class _CartScreenState extends State<CartScreen> {
+class CartScreenState extends State<CartScreen> {
   Timer? _cartTimer;
   bool _timerStarted = false;
+  double _userBalance = 1000.0;
+  static bool _appJustStarted = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_appJustStarted) {
+      _userBalance = 1000.0; // Reset to 1000 only on app start
+      _appJustStarted = false;
+    }
+  }
 
   @override
   void dispose() {
@@ -33,22 +51,57 @@ class _CartScreenState extends State<CartScreen> {
       appBar: AppBar(title: Text("Farmis - Cart")),
       body: Column(
         children: [
+          // Display user balance
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              "Your Balance: ₱$_userBalance",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.green[700],
+              ),
+            ),
+          ),
           Expanded(
-            child: ListView.builder(
+            child: cartItems.isEmpty
+                ? Center(
+              child: Text(
+                "Your cart is empty",
+                style: TextStyle(fontSize: 18),
+              ),
+            )
+                : ListView.builder(
               itemCount: cartItems.length,
               itemBuilder: (context, index) {
                 final item = cartItems.values.toList()[index];
                 final Product product = item['product'];
                 final int quantity = item['quantity'];
+                final bool isOutOfStock = product.stock <= 0;
 
                 return Card(
                   child: ListTile(
                     title: Text(product.name),
-                    subtitle: Text(
-                        "Price: ₱${product.price} | Quantity: $quantity"),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Price: ₱${product.price} | Quantity: $quantity"),
+                        if (isOutOfStock)
+                          Text(
+                            "OUT OF STOCK",
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                      ],
+                    ),
                     trailing: IconButton(
-                      icon: Icon(Icons.remove_circle, color: Colors.red),
-                      onPressed: () {
+                      icon: Icon(Icons.remove_circle,
+                          color: isOutOfStock ? Colors.grey : Colors.red),
+                      onPressed: isOutOfStock
+                          ? null
+                          : () {
                         cartProvider.removeFromCart(product);
                       },
                     ),
@@ -57,27 +110,42 @@ class _CartScreenState extends State<CartScreen> {
               },
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              "Total: ₱${cartProvider.totalAmount}",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          if (cartItems.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                "Total: ₱${cartProvider.totalAmount}",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: cartItems.isEmpty
-                  ? null
-                  : () {
-                _showCheckoutConfirmationDialog(context, cartProvider);
-              },
-              child: Text("Checkout"),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: ElevatedButton(
+                onPressed: _canCheckout(cartProvider)
+                    ? () {
+                  _showCheckoutConfirmationDialog(context, cartProvider);
+                }
+                    : null,
+                child: Text("Checkout"),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
+  }
+
+  bool _canCheckout(CartProvider cartProvider) {
+    if (cartProvider.cartItems.isEmpty) return false;
+    if (cartProvider.totalAmount > _userBalance) return false;
+
+    for (var item in cartProvider.cartItems.values) {
+      if (item['product'].stock <= 0) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   void _startTimer(CartProvider cartProvider) {
@@ -90,35 +158,55 @@ class _CartScreenState extends State<CartScreen> {
     });
   }
 
-// CartScreen.dart
-
   void _showCheckoutConfirmationDialog(BuildContext context, CartProvider cartProvider) {
+    final totalAmount = cartProvider.totalAmount;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text("Confirm Checkout"),
-        content: Text("Are you sure you want to proceed with the checkout?"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Total Amount: ₱$totalAmount"),
+            Text("Your Balance: ₱$_userBalance"),
+            SizedBox(height: 10),
+            if (totalAmount > _userBalance)
+              Text(
+                "Insufficient balance!",
+                style: TextStyle(color: Colors.red),
+              ),
+            Text("Are you sure you want to proceed with the checkout?"),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () {
-              // Cancel checkout, restore stock
-              cartProvider.restoreCartStock(); // Restore stock if checkout is canceled
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Checkout canceled, stock restored")),
-              );
+              Navigator.pop(context); // Just close the dialog without doing anything
             },
             child: Text("Cancel"),
           ),
           ElevatedButton(
-            onPressed: () async {
-              // Proceed with checkout and update stock in the database
-              await cartProvider.updateStockOnCheckout(cartProvider.cartItems);
-              cartProvider.clearCart(); // Clear the cart after successful checkout
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Checkout complete!")),
-              );
+            onPressed: totalAmount > _userBalance
+                ? null
+                : () async {
+              try {
+                await cartProvider.updateStockOnCheckout(cartProvider.cartItems);
+                setState(() {
+                  _userBalance -= totalAmount;
+                });
+                cartProvider.clearCart();
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Checkout complete!")),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Checkout failed: ${e.toString()}")),
+                );
+              }
             },
             child: Text("Confirm"),
           ),
@@ -126,5 +214,4 @@ class _CartScreenState extends State<CartScreen> {
       ),
     );
   }
-
 }
