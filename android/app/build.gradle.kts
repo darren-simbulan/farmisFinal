@@ -8,15 +8,15 @@ plugins {
 }
 
 android {
-    namespace = "com.darren.farmis"
+    namespace = "com.bsit.farmis"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.darren.farmis"
+        applicationId = "com.bsit.farmis"
         minSdk = 21
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.0.2"
+        versionCode = 8
+        versionName = "1.0.8"
     }
 
     compileOptions {
